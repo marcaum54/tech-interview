@@ -44,13 +44,31 @@ class Ecommerce:
                 total += article.total()
             return total
 
+        def delivery_fees_calculated(self, delivery_fees):
+            total = self.total()
+            delivery_fee_calculated = 0
+            for delivery_fee in delivery_fees:
+                eligible_transaction_volume = delivery_fee.get('eligible_transaction_volume')
+                min_price = eligible_transaction_volume.get('min_price')
+                max_price = eligible_transaction_volume.get('max_price')
+
+                has_min_and_max_price_rule = min_price is not None and max_price is not None and (min_price <= total < max_price)
+                only_has_min_price_rule = min_price is not None and max_price is None and total >= min_price
+                only_has_max_price_rule = min_price is None and max_price is not None and total < max_price
+
+                if has_min_and_max_price_rule or only_has_min_price_rule or only_has_max_price_rule:
+                    delivery_fee_calculated += delivery_fee.get('price')
+
+            return delivery_fee_calculated
+
     def __init__(self, level=None):
         self.loaded_json = None
         self._carts = []
 
         if level:
-            with open(__class__.__get_file_from_level(level)) as file_content:
+            with open(self.get_file_from_level(level)) as file_content:
                 self.loaded_json = json.load(file_content)
+                self._delivery_fees = self.loaded_json.get('delivery_fees', [])
 
                 for cart in self.loaded_json.get('carts', []):
                     new_cart = __class__.Cart(cart)
@@ -68,8 +86,7 @@ class Ecommerce:
 
                     self._carts.append(new_cart)
 
-    @staticmethod
-    def __get_file_from_level(level):
+    def get_file_from_level(self, level):
         import os.path
         file = "{0}{1}level{2}/data.json".format(os.path.dirname(__file__), os.path.sep, level)
         if not os.path.isfile(file):
@@ -83,12 +100,12 @@ class Ecommerce:
     def calculate_output(self):
         output = {'carts': []}
         for cart in self.get_carts():
-            output.get('carts').append({'id': cart.get_id(), 'total': cart.total()})
+            output.get('carts').append({'id': cart.get_id(), 'total': cart.total() + cart.delivery_fees_calculated(self._delivery_fees)})
         return output
 
     def to_json(self):
         return json.dumps(self.calculate_output())
 
 
-ecommerce = Ecommerce(level=1)
+ecommerce = Ecommerce(level=2)
 ecommerce.to_json()
