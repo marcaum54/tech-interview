@@ -116,8 +116,8 @@ class Ecommerce:
 
         return output
 
-    def to_json(self):
-        return json.dumps(self.create_output(), indent=2)
+    def to_json(self, indent=2):
+        return json.dumps(self.create_output(), indent=indent)
 
 
 if __name__ == '__main__':
